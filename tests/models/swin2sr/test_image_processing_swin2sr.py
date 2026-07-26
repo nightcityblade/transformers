@@ -79,8 +79,8 @@ class Swin2SRImageProcessingTester:
         else:
             input_height, input_width = img.shape[-2:]
 
-        pad_height = (input_height // self.size_divisor + 1) * self.size_divisor - input_height
-        pad_width = (input_width // self.size_divisor + 1) * self.size_divisor - input_width
+        pad_height = (self.size_divisor - input_height % self.size_divisor) % self.size_divisor
+        pad_width = (self.size_divisor - input_width % self.size_divisor) % self.size_divisor
 
         return self.num_channels, input_height + pad_height, input_width + pad_width
 
@@ -122,9 +122,18 @@ class Swin2SRImageProcessingTest(ImageProcessingTestMixin, unittest.TestCase):
         old_height, old_width = get_image_size(image)
         size = self.image_processor_tester.size_divisor
 
-        pad_height = (old_height // size + 1) * size - old_height
-        pad_width = (old_width // size + 1) * size - old_width
+        pad_height = (size - old_height % size) % size
+        pad_width = (size - old_width % size) % size
         return old_height + pad_height, old_width + pad_width
+
+    def test_pad_aligned_dimensions(self):
+        image = np.zeros((16, 24, 3), dtype=np.uint8)
+
+        for image_processing_class in self.image_processor_list:
+            image_processing = image_processing_class(**self.image_processor_dict)
+            pixel_values = image_processing(image, return_tensors="pt").pixel_values
+
+            self.assertEqual(tuple(pixel_values.shape), (1, 3, 16, 24))
 
     # Swin2SRImageProcessor does not support batched input
     def test_call_pil(self):
